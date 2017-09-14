@@ -25,13 +25,15 @@ from django.utils.html import escape
 from django import forms
 from django.utils import timezone
 
+from django.utils import six
+
 from helpdesk.forms import (
     TicketForm, UserSettingsForm, EmailIgnoreForm, EditTicketForm, TicketCCForm,
     TicketCCEmailForm, TicketCCUserForm, EditFollowUpForm, TicketDependencyForm
 )
 from helpdesk.lib import (
     send_templated_mail, query_to_dict, apply_query, safe_template_context,
-    process_attachments,
+    process_attachments, queue_template_context,
 )
 from helpdesk.models import (
     Ticket, Queue, FollowUp, TicketChange, PreSetReply, Attachment, SavedSearch,
@@ -696,7 +698,7 @@ def mass_update(request):
             # Send email to Submitter, Owner, Queue CC
             context = safe_template_context(t)
             context.update(resolution=t.resolution,
-                           queue=t.queue)
+                           queue=queue_template_context(t.queue))
 
             messages_sent_to = []
 
@@ -817,7 +819,10 @@ def ticket_list(request):
         import json
         from helpdesk.lib import b64decode
         try:
-            query_params = json.loads(b64decode(str(saved_query.query)))
+            if six.PY3:
+                query_params = json.loads(b64decode(str(saved_query.query)).decode())
+            else:
+                query_params = json.loads(b64decode(str(saved_query.query)))
         except ValueError:
             # Query deserialization failed. (E.g. was a pickled query)
             return HttpResponseRedirect(reverse('helpdesk:list'))
@@ -1114,7 +1119,10 @@ def run_report(request, report):
         import json
         from helpdesk.lib import b64decode
         try:
-            query_params = json.loads(b64decode(str(saved_query.query)))
+            if six.PY3:
+                query_params = json.loads(b64decode(str(saved_query.query)).decode())
+            else:
+                query_params = json.loads(b64decode(str(saved_query.query)))
         except:
             return HttpResponseRedirect(reverse('helpdesk:report_index'))
 
